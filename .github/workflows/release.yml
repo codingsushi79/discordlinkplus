@@ -15,9 +15,12 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      skip: ${{ steps.tag_check.outputs.skip }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,62 +54,77 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Java 25
-        if: steps.tag_check.outputs.skip != 'true'
-        id: setup-java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 25
-          cache: gradle
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: eclipse-temurin:25-jdk-jammy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Verify Java version
-        if: steps.tag_check.outputs.skip != 'true'
-        run: |
-          echo "JAVA_HOME=$JAVA_HOME"
-          java -version
-          if ! java -version 2>&1 | grep -qE 'version "25(\.|")'; then
-            echo "Java 25 is required for this build." >&2
-            exit 1
-          fi
+        run: java -version
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            /root/.gradle/caches
+            /root/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
 
       - name: Build plugin
-        if: steps.tag_check.outputs.skip != 'true'
-        env:
-          CI: true
-          JAVA_HOME: ${{ steps.setup-java.outputs.path }}
-        run: ./gradlew shadowJar --no-daemon -PpluginVersion=${{ steps.version.outputs.version }}
+        run: ./gradlew shadowJar --no-daemon -PpluginVersion=${{ needs.prepare.outputs.version }}
 
-      - name: Verify artifact
-        if: steps.tag_check.outputs.skip != 'true'
-        run: test -f "build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DiscordLinkPlus-${{ needs.prepare.outputs.version }}
+          path: build/libs/DiscordLinkPlus-${{ needs.prepare.outputs.version }}.jar
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DiscordLinkPlus-${{ needs.prepare.outputs.version }}
+          path: build/libs
 
       - name: Create and push tag
-        if: steps.tag_check.outputs.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.version.outputs.tag }}" -m "DiscordLink+ ${{ steps.version.outputs.version }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+          git tag -a "${{ needs.prepare.outputs.tag }}" -m "DiscordLink+ ${{ needs.prepare.outputs.version }}"
+          git push origin "${{ needs.prepare.outputs.tag }}"
 
       - name: Create GitHub Release
-        if: steps.tag_check.outputs.skip != 'true'
-        id: github_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            "build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar" \
-            --title "DiscordLink+ ${{ steps.version.outputs.version }}" \
+          gh release create "${{ needs.prepare.outputs.tag }}" \
+            "build/libs/DiscordLinkPlus-${{ needs.prepare.outputs.version }}.jar" \
+            --title "DiscordLink+ ${{ needs.prepare.outputs.version }}" \
             --generate-notes
 
       - name: Load release notes
-        if: steps.tag_check.outputs.skip != 'true'
         id: notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BODY="$(gh release view "${{ steps.version.outputs.tag }}" --json body -q .body)"
+          BODY="$(gh release view "${{ needs.prepare.outputs.tag }}" --json body -q .body)"
           {
             echo "body<<EOF"
             echo "$BODY"
@@ -114,13 +132,12 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish to Modrinth
-        if: steps.tag_check.outputs.skip != 'true'
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
           project: "discordlink+"
-          name: DiscordLink+ ${{ steps.version.outputs.version }}
-          version: ${{ steps.version.outputs.version }}
+          name: DiscordLink+ ${{ needs.prepare.outputs.version }}
+          version: ${{ needs.prepare.outputs.version }}
           channel: release
           changelog: ${{ steps.notes.outputs.body }}
           loaders: |-
@@ -131,4 +148,4 @@ jobs:
           game-versions: 26.1
           dependencies: |
             [{"project_id":"simple-voice-chat","dependency_type":"optional"}]
-          files: build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar
+          files: build/libs/DiscordLinkPlus-${{ needs.prepare.outputs.version }}.jar

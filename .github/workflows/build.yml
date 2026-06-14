@@ -13,33 +13,29 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: eclipse-temurin:25-jdk-jammy
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 25
-        id: setup-java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 25
-          cache: gradle
-
       - name: Verify Java version
         run: |
-          echo "JAVA_HOME=$JAVA_HOME"
           java -version
           javac -version
-          if ! java -version 2>&1 | grep -qE 'version "25(\.|")'; then
-            echo "Java 25 is required for this build." >&2
-            exit 1
-          fi
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            /root/.gradle/caches
+            /root/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
 
       - name: Build plugin
-        env:
-          CI: true
-          JAVA_HOME: ${{ steps.setup-java.outputs.path }}
         run: ./gradlew shadowJar --no-daemon
 
       - name: Upload artifact
