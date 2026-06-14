@@ -68,7 +68,14 @@ When `pluginVersion` in `gradle.properties` changes on a push to `main`, a **rel
    git push origin main
    ```
 
-To **re-publish without bumping the version** (e.g. after fixing CI), go to **Actions → Build → Run workflow**, check **Publish to GitHub Releases and Modrinth**, and run.
+To **re-publish without bumping the version** (e.g. after fixing CI), either:
+
+- Go to **Actions → Build → Run workflow** and run (Publish is checked by default), or
+- Push to `main` with `[release]` in the commit message:
+  ```bash
+  git commit --allow-empty -m "[release] Publish 1.0.0"
+  git push origin main
+  ```
 
 If the git tag already exists, the tag/GitHub release steps are skipped, but Modrinth publish still runs.
 

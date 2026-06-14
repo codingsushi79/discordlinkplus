@@ -10,7 +10,7 @@ on:
       publish:
         description: Publish to GitHub Releases and Modrinth (even if gradle.properties unchanged)
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: build-${{ github.ref }}
@@ -24,15 +24,47 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
-      version_bump: ${{ steps.filter.outputs.version == 'true' || github.event.inputs.publish == 'true' }}
+      version_bump: ${{ steps.should_release.outputs.release }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
             version:
               - gradle.properties
+
+      - name: Decide whether to release
+        id: should_release
+        env:
+          VERSION_CHANGED: ${{ steps.filter.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+          PUBLISH_INPUT: ${{ github.event.inputs.publish }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          RELEASE=false
+
+          if [[ "$VERSION_CHANGED" == "true" ]]; then
+            RELEASE=true
+          fi
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$PUBLISH_INPUT" == "true" ]]; then
+            RELEASE=true
+          fi
+
+          if [[ "$EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == *"[release]"* ]]; then
+            RELEASE=true
+          fi
+
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          if [[ "$RELEASE" == "true" ]]; then
+            echo "Release job will run."
+          else
+            echo "Release job skipped (bump pluginVersion, include [release] in the commit message, or run workflow manually with Publish checked)."
+          fi
 
   build:
     runs-on: ubuntu-latest
@@ -172,5 +204,5 @@ jobs:
             folia
           game-versions: 26.1
           dependencies: |
-            [{"project_id":"simple-voice-chat","dependency_type":"optional"}]
+            [{"project_id":"9eGKb6K1","dependency_type":"optional"}]
           files: build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar
