@@ -57,8 +57,9 @@ The **Release** workflow (`.github/workflows/release.yml`) runs when you [publis
 1. Create a Modrinth project for this plugin
 2. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
 3. Add GitHub repository configuration:
-   - **Secret** `MODRINTH_TOKEN` — your Modrinth PAT
-   - **Variable** `MODRINTH_PROJECT_ID` — Modrinth project ID (project page → ⋮ → Copy ID)
+   - **Secret** `MODRINTH_TOKEN` — your Modrinth PAT with **Create versions** scope
+
+The release workflow publishes to the Modrinth project slug [`discordlink+`](https://modrinth.com/project/discordlink+) — no project ID variable needed.
 
 #### Cutting a release
 

@@ -34,6 +34,9 @@ jobs:
           java-version: 25
           cache: gradle
 
+      - name: Verify Java version
+        run: java -version
+
       - name: Build plugin
         run: ./gradlew shadowJar --no-daemon -PpluginVersion=${{ steps.version.outputs.version }}
 
@@ -52,7 +55,7 @@ jobs:
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
-          project: ${{ vars.MODRINTH_PROJECT_ID }}
+          project: "discordlink+"
           name: DiscordLink+ ${{ steps.version.outputs.version }}
           version: ${{ steps.version.outputs.version }}
           channel: release
@@ -64,5 +67,5 @@ jobs:
             folia
           game-versions: 26.1
           dependencies: |
-            [{"project_id":"9eGKb6K1","dependency_type":"optional"}]
+            [{"project_id":"simple-voice-chat","dependency_type":"optional"}]
           files: build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar

@@ -25,6 +25,9 @@ jobs:
           java-version: 25
           cache: gradle
 
+      - name: Verify Java version
+        run: java -version
+
       - name: Build plugin
         run: ./gradlew shadowJar --no-daemon
 
