@@ -1,0 +1,24 @@
+name: DiscordLink+
+version: ${version}
+main: com.mcdiscordbot.MCDiscordBot
+api-version: '1.21'
+folia-supported: true
+author: DiscordLink+
+description: Discord bridge with account linking and Simple Voice Chat group bridging
+softdepend: [voicechat]
+commands:
+  mcdiscord:
+    description: DiscordLink+ administration and linking commands
+    usage: /mcdiscord <reload|link|unlink|status>
+    permission: mcdiscord.admin
+    aliases: [mcd, mdb]
+permissions:
+  mcdiscord.admin:
+    description: Reload config and manage the bot
+    default: op
+  mcdiscord.bypass.link:
+    description: Join without linking a Discord account
+    default: op
+  mcdiscord.chat:
+    description: Send Minecraft chat to Discord
+    default: true

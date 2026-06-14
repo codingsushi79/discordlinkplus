@@ -1,0 +1,54 @@
+# DiscordLink+ Configuration
+# Restart or use /mcdiscord reload after editing.
+
+discord:
+  # Your Discord bot token from https://discord.com/developers/applications
+  token: "YOUR_BOT_TOKEN_HERE"
+  # Numeric guild (server) ID
+  guild-id: "0"
+  # Channel ID for Minecraft chat relay
+  chat-channel-id: "0"
+  # Category ID where bridged voice channels are created (optional, 0 = root)
+  voice-category-id: "0"
+  # Role ID assigned after successful account link (Verified)
+  verified-role-id: "0"
+  # Bot activity message
+  activity: "Minecraft %online%/%max% players"
+
+linking:
+  enabled: true
+  # How long link codes stay valid (seconds)
+  code-expiry-seconds: 600
+  # Code length (digits)
+  code-length: 6
+  kick-message: |
+    &cYou must link your Discord account before playing.
+    &7Your link code: &e%code%
+    &7DM this code to the bot on Discord within &e%minutes% &7minutes.
+    &7Discord: &b%discord-invite%
+
+chat:
+  enabled: true
+  # Format sent to Discord (%player%, %message%, %world%)
+  minecraft-to-discord-format: "**%player%**: %message%"
+  # Format sent to Minecraft (%user%, %message%)
+  discord-to-minecraft-format: "&9[Discord] &b%user%&7: &f%message%"
+  # Relay join/leave/death messages
+  join-leave-messages: true
+  death-messages: true
+
+voice-bridge:
+  enabled: true
+  # Prefix for auto-created Discord voice channels
+  channel-prefix: "VC "
+  # Poll interval for new Simple Voice Chat groups (ticks, 20 = 1 second)
+  sync-interval-ticks: 40
+  # Delete Discord channels when the in-game group is empty
+  delete-empty-channels: true
+  # Simple Voice Chat server bind info (informational / logging)
+  server-host: "127.0.0.1"
+  server-port: 24454
+
+storage:
+  # File name inside the plugin data folder
+  links-file: "links.json"
