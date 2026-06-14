@@ -13,30 +13,51 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: eclipse-temurin:25-jdk-jammy
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify Java version
+      # Run Gradle on Java 21 (Gradle 8.x cannot reliably run ON Java 25).
+      - name: Set up Java 21 (Gradle runtime)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Provide Java 25 for compilation via toolchains (no auto-download).
+      - name: Set up Java 25 (compile toolchain)
+        id: java25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Configure Gradle JDKs
         run: |
-          java -version
-          javac -version
+          echo "org.gradle.java.installations.auto-download=false" >> gradle.properties
+          echo "org.gradle.java.installations.paths=${{ steps.java25.outputs.path }}" >> gradle.properties
+          echo "Gradle will run on Java 21 and compile with Java 25 at: ${{ steps.java25.outputs.path }}"
+
+      - name: Verify Java setup
+        env:
+          JAVA_HOME: ${{ steps.java25.outputs.path }}
+        run: |
+          java -version || true
+          "${{ steps.java25.outputs.path }}/bin/java" -version
 
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
-            /root/.gradle/caches
-            /root/.gradle/wrapper
+            ~/.gradle/caches
+            ~/.gradle/wrapper
           key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             gradle-
 
       - name: Build plugin
-        run: ./gradlew shadowJar --no-daemon
+        run: ./gradlew shadowJar --no-daemon --stacktrace
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

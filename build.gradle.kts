@@ -6,12 +6,8 @@ plugins {
 group = property("group") as String
 version = property("pluginVersion") as String
 
-// Only provision a toolchain when the JVM running Gradle is older than 25.
-// On CI we run inside eclipse-temurin:25-jdk-jammy, so this block is skipped.
-if (JavaVersion.current().majorVersion.toInt() < 25) {
-    java {
-        toolchain.languageVersion.set(JavaLanguageVersion.of(25))
-    }
+java {
+    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
 }
 
 repositories {
