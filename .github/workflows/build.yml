@@ -142,7 +142,6 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           changelog: Automated release for ${{ steps.version.outputs.tag }}
           channel: release
-          status: draft
           loaders: |-
             paper
             spigot

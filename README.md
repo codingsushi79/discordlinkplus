@@ -36,7 +36,7 @@ A **Paper/Bukkit/Folia-compatible** Minecraft plugin that bridges your server wi
 ./gradlew shadowJar
 ```
 
-Output: `build/libs/DiscordLinkPlus-1.0.1.jar`
+Output: `build/libs/DiscordLinkPlus-1.0.2.jar`
 
 ## CI/CD (GitHub Actions)
 
@@ -45,7 +45,7 @@ The **Build** workflow (`.github/workflows/build.yml`) runs on pushes and PRs to
 On push to `main`, if git tag `v<version>` does not exist yet for the current `pluginVersion`, the workflow also:
 
 1. Creates git tag `v<version>` and a GitHub Release
-2. Publishes the JAR to Modrinth (`discordlink+`) as a **draft** version
+2. Publishes the JAR to Modrinth (`discordlink+`)
 
 #### One-time setup
 
