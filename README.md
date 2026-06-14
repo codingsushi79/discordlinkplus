@@ -36,7 +36,7 @@ A **Paper/Bukkit/Folia-compatible** Minecraft plugin that bridges your server wi
 ./gradlew shadowJar
 ```
 
-Output: `build/libs/DiscordLinkPlus-1.0.0.jar`
+Output: `build/libs/DiscordLinkPlus-1.0.1.jar`
 
 ## CI/CD (GitHub Actions)
 
