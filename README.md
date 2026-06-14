@@ -40,29 +40,20 @@ Output: `build/libs/DiscordLinkPlus-1.0.0.jar`
 
 ## CI/CD (GitHub Actions)
 
-### Pull requests and pushes
+### CI/CD (GitHub Actions)
 
 The **Build** workflow (`.github/workflows/build.yml`) runs on pushes and PRs to `main`/`master`, compiles the plugin, and uploads the JAR as a workflow artifact.
 
-### Releases and Modrinth publishing
+When `pluginVersion` in `gradle.properties` changes on a push to `main`, a **release** job also runs that:
 
-The **Release** workflow (`.github/workflows/release.yml`) runs when `pluginVersion` in `gradle.properties` is pushed to `main`/`master`, or when triggered manually from **Actions → Release → Run workflow**. It will:
-
-1. Read the version from `gradle.properties` (or use the manual override)
-2. Create and push git tag `v<version>` (e.g. `v1.0.1`)
-3. Build the shadow JAR
-4. Create a GitHub Release with auto-generated notes and attach the JAR
-5. Publish to Modrinth
-
-If tag `v<version>` already exists, the workflow skips (safe for re-pushes).
+1. Creates git tag `v<version>` and a GitHub Release (if the tag doesn't exist yet)
+2. Publishes the JAR to Modrinth (`discordlink+`) as a **draft** version (for unpublished projects)
 
 #### One-time setup
 
 1. Create a Modrinth project for this plugin
 2. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
 3. Add GitHub repository secret **`MODRINTH_TOKEN`**
-
-The release workflow publishes to the Modrinth project slug [`discordlink+`](https://modrinth.com/project/discordlink+).
 
 #### Cutting a release
 
@@ -77,9 +68,9 @@ The release workflow publishes to the Modrinth project slug [`discordlink+`](htt
    git push origin main
    ```
 
-GitHub Actions creates `v1.0.1`, the GitHub Release, and the Modrinth version automatically.
+To **re-publish without bumping the version** (e.g. after fixing CI), go to **Actions → Build → Run workflow**, check **Publish to GitHub Releases and Modrinth**, and run.
 
-You can also run the workflow manually from the Actions tab if you need to re-trigger without changing `gradle.properties`.
+If the git tag already exists, the tag/GitHub release steps are skipped, but Modrinth publish still runs.
 
 ## Setup
 
