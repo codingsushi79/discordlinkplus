@@ -40,23 +40,20 @@ Output: `build/libs/DiscordLinkPlus-1.0.0.jar`
 
 ## CI/CD (GitHub Actions)
 
-### CI/CD (GitHub Actions)
-
 The **Build** workflow (`.github/workflows/build.yml`) runs on pushes and PRs to `main`/`master`, compiles the plugin, and uploads the JAR as a workflow artifact.
 
-When `pluginVersion` in `gradle.properties` changes on a push to `main`, a **release** job also runs that:
+On push to `main`, if git tag `v<version>` does not exist yet for the current `pluginVersion`, the workflow also:
 
-1. Creates git tag `v<version>` and a GitHub Release (if the tag doesn't exist yet)
-2. Publishes the JAR to Modrinth (`discordlink+`) as a **draft** version (for unpublished projects)
+1. Creates git tag `v<version>` and a GitHub Release
+2. Publishes the JAR to Modrinth (`discordlink+`) as a **draft** version
 
 #### One-time setup
 
 1. Create a Modrinth project for this plugin
-2. On the project page, open the menu (⋮) → **Copy ID** (a short base62 string, not the URL slug)
-3. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
-4. Add GitHub repository settings:
-   - Secret **`MODRINTH_TOKEN`** — your Modrinth PAT
-   - Variable **`MODRINTH_PROJECT_ID`** — the copied project ID
+2. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
+3. Add GitHub repository secret **`MODRINTH_TOKEN`**
+
+The Modrinth project ID is resolved automatically from the project slug at publish time.
 
 #### Cutting a release
 
@@ -71,16 +68,7 @@ When `pluginVersion` in `gradle.properties` changes on a push to `main`, a **rel
    git push origin main
    ```
 
-To **re-publish without bumping the version** (e.g. after fixing CI), either:
-
-- Go to **Actions → Build → Run workflow** and run (Publish is checked by default), or
-- Push to `main` with `[release]` in the commit message:
-  ```bash
-  git commit --allow-empty -m "[release] Publish 1.0.0"
-  git push origin main
-  ```
-
-If the git tag already exists, the tag/GitHub release steps are skipped, but Modrinth publish still runs.
+To **re-publish without bumping the version** (e.g. after fixing CI), go to **Actions → Build → Run workflow** and run (Publish is checked by default). If the git tag already exists, the GitHub release step is skipped, but Modrinth publish still runs.
 
 ## Setup
 

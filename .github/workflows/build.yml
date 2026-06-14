@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publish to GitHub Releases and Modrinth (even if gradle.properties unchanged)
+        description: Publish to GitHub Releases and Modrinth (even if tag already exists)
         type: boolean
         default: true
 
@@ -20,57 +20,45 @@ permissions:
   contents: write
 
 jobs:
-  changes:
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    outputs:
-      version_bump: ${{ steps.should_release.outputs.release }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            version:
-              - gradle.properties
-
-      - name: Decide whether to release
-        id: should_release
-        env:
-          VERSION_CHANGED: ${{ steps.filter.outputs.version }}
-          EVENT_NAME: ${{ github.event_name }}
-          PUBLISH_INPUT: ${{ github.event.inputs.publish }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          RELEASE=false
-
-          if [[ "$VERSION_CHANGED" == "true" ]]; then
-            RELEASE=true
-          fi
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$PUBLISH_INPUT" == "true" ]]; then
-            RELEASE=true
-          fi
-
-          if [[ "$EVENT_NAME" == "push" && "$COMMIT_MESSAGE" == *"[release]"* ]]; then
-            RELEASE=true
-          fi
-
-          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
-          if [[ "$RELEASE" == "true" ]]; then
-            echo "Release job will run."
-          else
-            echo "Release job skipped (bump pluginVersion, include [release] in the commit message, or run workflow manually with Publish checked)."
-          fi
-
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve project version
+        id: version
+        run: |
+          VERSION="$(grep '^pluginVersion=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
+          if [[ -z "$VERSION" ]]; then
+            echo "Could not read pluginVersion from gradle.properties" >&2
+            exit 1
+          fi
+          TAG="v${VERSION}"
+
+          SHOULD_RELEASE=false
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            SHOULD_RELEASE=false
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.publish }}" == "true" ]]; then
+            SHOULD_RELEASE=true
+          elif git rev-parse "${TAG}^{tag}" >/dev/null 2>&1; then
+            SHOULD_RELEASE=false
+          else
+            SHOULD_RELEASE=true
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "should-release=${SHOULD_RELEASE}" >> "$GITHUB_OUTPUT"
+
+          if [[ "$SHOULD_RELEASE" == "true" ]]; then
+            echo "Will publish version ${VERSION} (${TAG})"
+          else
+            echo "Build only — no release for version ${VERSION}"
+          fi
 
       - name: Set up Java 25 (compile toolchain)
         id: java25
@@ -103,106 +91,69 @@ jobs:
       - name: Build plugin
         run: ./gradlew shadowJar --no-daemon --stacktrace
 
+      - name: Resolve plugin jar
+        id: jar
+        run: |
+          JAR_PATH="build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar"
+          if [[ ! -f "$JAR_PATH" ]]; then
+            echo "::error::Expected jar not found: $JAR_PATH"
+            ls -la build/libs/ || true
+            exit 1
+          fi
+          echo "path=${JAR_PATH}" >> "$GITHUB_OUTPUT"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: DiscordLinkPlus
-          path: build/libs/DiscordLinkPlus-*.jar
+          path: ${{ steps.jar.outputs.path }}
           if-no-files-found: error
 
-  release:
-    needs: [changes, build]
-    if: |
-      github.event_name != 'pull_request' &&
-      needs.changes.result == 'success' &&
-      needs.changes.outputs.version_bump == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Resolve version
-        id: version
-        run: |
-          VERSION="$(grep '^pluginVersion=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')"
-          if [[ -z "$VERSION" ]]; then
-            echo "Could not read pluginVersion from gradle.properties" >&2
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: DiscordLinkPlus
-          path: build/libs
-
-      - name: Verify artifact
-        run: test -f "build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar"
-
       - name: Check for existing tag
+        if: steps.version.outputs.should-release == 'true'
         id: tag_check
         run: |
-          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+          if git rev-parse "${{ steps.version.outputs.tag }}^{tag}" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Tag ${{ steps.version.outputs.tag }} already exists — skipping tag and GitHub release."
+            echo "Tag ${{ steps.version.outputs.tag }} already exists — skipping GitHub release."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create and push tag
-        if: steps.tag_check.outputs.exists != 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.version.outputs.tag }}" -m "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+      - name: Create GitHub release
+        if: steps.version.outputs.should-release == 'true' && steps.tag_check.outputs.exists != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          files: ${{ steps.jar.outputs.path }}
 
-      - name: Create GitHub Release
-        if: steps.tag_check.outputs.exists != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve Modrinth project
+        if: steps.version.outputs.should-release == 'true'
+        id: modrinth
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            "build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar" \
-            --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes
-
-      - name: Load release notes
-        id: notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [[ "${{ steps.tag_check.outputs.exists }}" == "true" ]]; then
-            NOTES="Release ${{ steps.version.outputs.version }}"
-          else
-            NOTES="$(gh release view "${{ steps.version.outputs.tag }}" --json body -q .body)"
-          fi
-          {
-            echo "body<<EOF"
-            echo "$NOTES"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          PROJECT_ID=$(curl -fsSL "https://api.modrinth.com/v2/project/discordlink%2B/check" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          echo "project-id=${PROJECT_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Modrinth
+        if: steps.version.outputs.should-release == 'true'
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
-          project: ${{ vars.MODRINTH_PROJECT_ID }}
-          name: DiscordLink+ ${{ steps.version.outputs.version }}
+          project: ${{ steps.modrinth.outputs.project-id }}
+          name: ${{ steps.version.outputs.tag }}
           version: ${{ steps.version.outputs.version }}
+          changelog: Automated release for ${{ steps.version.outputs.tag }}
           channel: release
           status: draft
-          changelog: ${{ steps.notes.outputs.body }}
           loaders: |-
             paper
             spigot
             bukkit
             folia
-          game-versions: 26.1
-          dependencies: |
-            [{"project_id":"9eGKb6K1","dependency_type":"optional"}]
-          files: build/libs/DiscordLinkPlus-${{ steps.version.outputs.version }}.jar
+          game-versions: |-
+            26.1
+            26.1.1
+            26.1.2
+          files: ${{ steps.jar.outputs.path }}
