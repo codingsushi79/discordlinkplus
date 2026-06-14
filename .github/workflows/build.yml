@@ -12,10 +12,6 @@ on:
         type: boolean
         default: true
 
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
