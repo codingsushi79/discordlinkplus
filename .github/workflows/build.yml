@@ -132,14 +132,22 @@ jobs:
           PROJECT_ID=$(curl -fsSL "https://api.modrinth.com/v2/project/discordlink%2B/check" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
           echo "project-id=${PROJECT_ID}" >> "$GITHUB_OUTPUT"
 
+      - name: Set Modrinth metadata
+        if: steps.version.outputs.should-release == 'true'
+        id: modrinth-meta
+        run: |
+          GAME_VERSION_RANGE=26.x.x
+          echo "version=${{ steps.version.outputs.version }}+${GAME_VERSION_RANGE}" >> "$GITHUB_OUTPUT"
+          echo "name=DiscordLink+ [v${{ steps.version.outputs.version }}+${GAME_VERSION_RANGE}]" >> "$GITHUB_OUTPUT"
+
       - name: Publish to Modrinth
         if: steps.version.outputs.should-release == 'true'
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
           project: ${{ steps.modrinth.outputs.project-id }}
-          name: ${{ steps.version.outputs.tag }}
-          version: ${{ steps.version.outputs.version }}
+          name: ${{ steps.modrinth-meta.outputs.name }}
+          version: ${{ steps.modrinth-meta.outputs.version }}
           changelog: Automated release for ${{ steps.version.outputs.tag }}
           channel: release
           loaders: |-
@@ -148,7 +156,5 @@ jobs:
             bukkit
             folia
           game-versions: |-
-            26.1
-            26.1.1
-            26.1.2
+            26.1.x
           files: ${{ steps.jar.outputs.path }}
