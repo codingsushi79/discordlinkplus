@@ -52,8 +52,11 @@ When `pluginVersion` in `gradle.properties` changes on a push to `main`, a **rel
 #### One-time setup
 
 1. Create a Modrinth project for this plugin
-2. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
-3. Add GitHub repository secret **`MODRINTH_TOKEN`**
+2. On the project page, open the menu (⋮) → **Copy ID** (a short base62 string, not the URL slug)
+3. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
+4. Add GitHub repository settings:
+   - Secret **`MODRINTH_TOKEN`** — your Modrinth PAT
+   - Variable **`MODRINTH_PROJECT_ID`** — the copied project ID
 
 #### Cutting a release
 

@@ -191,7 +191,7 @@ jobs:
         uses: cloudnode-pro/modrinth-publish@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
-          project: "discordlink+"
+          project: ${{ vars.MODRINTH_PROJECT_ID }}
           name: DiscordLink+ ${{ steps.version.outputs.version }}
           version: ${{ steps.version.outputs.version }}
           channel: release
