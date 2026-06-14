@@ -46,31 +46,40 @@ The **Build** workflow (`.github/workflows/build.yml`) runs on pushes and PRs to
 
 ### Releases and Modrinth publishing
 
-The **Release** workflow (`.github/workflows/release.yml`) runs when you [publish a GitHub Release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository#creating-a-release). It will:
+The **Release** workflow (`.github/workflows/release.yml`) runs when `pluginVersion` in `gradle.properties` is pushed to `main`/`master`, or when triggered manually from **Actions → Release → Run workflow**. It will:
 
-1. Build the shadow JAR using the release tag as the plugin version (strip a leading `v`, e.g. `v1.0.1` → `1.0.1`)
-2. Attach the JAR to the GitHub Release
-3. Publish a new version to your Modrinth project
+1. Read the version from `gradle.properties` (or use the manual override)
+2. Create and push git tag `v<version>` (e.g. `v1.0.1`)
+3. Build the shadow JAR
+4. Create a GitHub Release with auto-generated notes and attach the JAR
+5. Publish to Modrinth
+
+If tag `v<version>` already exists, the workflow skips (safe for re-pushes).
 
 #### One-time setup
 
 1. Create a Modrinth project for this plugin
 2. Generate a [Modrinth PAT](https://modrinth.com/settings/pats) with **Create versions** scope
-3. Add GitHub repository configuration:
-   - **Secret** `MODRINTH_TOKEN` — your Modrinth PAT with **Create versions** scope
+3. Add GitHub repository secret **`MODRINTH_TOKEN`**
 
-The release workflow publishes to the Modrinth project slug [`discordlink+`](https://modrinth.com/project/discordlink+) — no project ID variable needed.
+The release workflow publishes to the Modrinth project slug [`discordlink+`](https://modrinth.com/project/discordlink+).
 
 #### Cutting a release
 
-```bash
-git tag v1.0.1
-git push origin v1.0.1
-```
+1. Bump the version in `gradle.properties`:
+   ```properties
+   pluginVersion=1.0.1
+   ```
+2. Commit and push to `main`:
+   ```bash
+   git add gradle.properties
+   git commit -m "Release 1.0.1"
+   git push origin main
+   ```
 
-Then on GitHub: **Releases → Draft a new release → Choose tag `v1.0.1` → Publish release**.
+GitHub Actions creates `v1.0.1`, the GitHub Release, and the Modrinth version automatically.
 
-The release notes body becomes the Modrinth changelog.
+You can also run the workflow manually from the Actions tab if you need to re-trigger without changing `gradle.properties`.
 
 ## Setup
 

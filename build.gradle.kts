@@ -6,8 +6,12 @@ plugins {
 group = property("group") as String
 version = property("pluginVersion") as String
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+// CI provides Java 25 via setup-java — toolchain auto-provisioning fails there with "25.0.3".
+// Locally, use a toolchain so Gradle can auto-download JDK 25 when needed.
+if (System.getenv("CI") != "true") {
+    java {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+    }
 }
 
 repositories {
