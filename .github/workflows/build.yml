@@ -18,14 +18,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Run Gradle on Java 21 (Gradle 8.x cannot reliably run ON Java 25).
+      # Gradle 8.x Kotlin DSL cannot run on Java 25 (fails parsing "25.0.3").
       - name: Set up Java 21 (Gradle runtime)
+        id: java21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      # Provide Java 25 for compilation via toolchains (no auto-download).
       - name: Set up Java 25 (compile toolchain)
         id: java25
         uses: actions/setup-java@v4
@@ -37,13 +37,13 @@ jobs:
         run: |
           echo "org.gradle.java.installations.auto-download=false" >> gradle.properties
           echo "org.gradle.java.installations.paths=${{ steps.java25.outputs.path }}" >> gradle.properties
-          echo "Gradle will run on Java 21 and compile with Java 25 at: ${{ steps.java25.outputs.path }}"
 
       - name: Verify Java setup
         env:
-          JAVA_HOME: ${{ steps.java25.outputs.path }}
+          JAVA_HOME: ${{ steps.java21.outputs.path }}
         run: |
-          java -version || true
+          echo "JAVA_HOME=$JAVA_HOME"
+          java -version
           "${{ steps.java25.outputs.path }}/bin/java" -version
 
       - name: Cache Gradle
@@ -57,6 +57,9 @@ jobs:
             gradle-
 
       - name: Build plugin
+        env:
+          JAVA_HOME: ${{ steps.java21.outputs.path }}
+          PATH: ${{ steps.java21.outputs.path }}/bin:${{ env.PATH }}
         run: ./gradlew shadowJar --no-daemon --stacktrace
 
       - name: Upload artifact

@@ -63,6 +63,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 21 (Gradle runtime)
+        id: java21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -91,6 +92,9 @@ jobs:
             gradle-
 
       - name: Build plugin
+        env:
+          JAVA_HOME: ${{ steps.java21.outputs.path }}
+          PATH: ${{ steps.java21.outputs.path }}/bin:${{ env.PATH }}
         run: ./gradlew shadowJar --no-daemon -PpluginVersion=${{ needs.prepare.outputs.version }} --stacktrace
 
       - name: Upload artifact
